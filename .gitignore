@@ -1,0 +1,7 @@
+/gq
+/gq.exe
+dist/
+coverage.out
+*.test
+/.idea/
+*.iml
