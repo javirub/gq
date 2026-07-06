@@ -164,7 +164,10 @@ go install github.com/javirub/gq/cmd/gq@latest
 Release checksums are signed keyless with [cosign](https://github.com/sigstore/cosign):
 
 ```bash
-cosign verify-blob --bundle checksums.txt.sig --certificate checksums.txt.pem checksums.txt
+cosign verify-blob --bundle checksums.txt.bundle \
+  --certificate-identity-regexp 'https://github.com/javirub/gq' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  checksums.txt
 ```
 
 ## GitHub Action
