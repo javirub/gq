@@ -4,7 +4,6 @@
 [![CodeQL](https://github.com/javirub/gq/actions/workflows/codeql.yml/badge.svg)](https://github.com/javirub/gq/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/javirub/gq/badge)](https://scorecard.dev/viewer/?uri=github.com/javirub/gq)
 [![codecov](https://codecov.io/gh/javirub/gq/branch/main/graph/badge.svg)](https://codecov.io/gh/javirub/gq)
-[![Go Report Card](https://goreportcard.com/badge/github.com/javirub/gq)](https://goreportcard.com/report/github.com/javirub/gq)
 [![Release](https://img.shields.io/github/v/release/javirub/gq)](https://github.com/javirub/gq/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
