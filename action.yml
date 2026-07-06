@@ -85,7 +85,9 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        result=$(eval gq ${{ inputs.cmd }})
+        # the cmd input is spliced verbatim into this script, so the shell
+        # parses its quoting exactly once
+        result=$(gq ${{ inputs.cmd }})
         {
           echo "result<<GQ_ACTION_EOF"
           echo "$result"
