@@ -1,0 +1,94 @@
+name: 'gq'
+description: 'yq-compatible YAML/JSON processor that preserves Go template syntax ({{ ... }}) in .gotmpl files'
+author: 'javirub'
+branding:
+  icon: 'code'
+  color: 'blue'
+
+inputs:
+  cmd:
+    description: 'The gq command to run, e.g. -i ".replicas = 3" values.yaml.gotmpl'
+    required: true
+  version:
+    description: 'gq version to install (a release tag like v0.1.0, or "latest")'
+    required: false
+    default: 'latest'
+
+outputs:
+  result:
+    description: 'stdout of the gq command'
+    value: ${{ steps.run.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install gq
+      shell: bash
+      env:
+        GQ_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        case "$(uname -s)" in
+          Linux*) OS=linux ;;
+          Darwin*) OS=darwin ;;
+          MINGW*|MSYS*|CYGWIN*) OS=windows ;;
+          *) echo "unsupported OS $(uname -s)" >&2; exit 1 ;;
+        esac
+        case "$(uname -m)" in
+          x86_64|amd64) ARCH=amd64 ;;
+          aarch64|arm64) ARCH=arm64 ;;
+          *) echo "unsupported arch $(uname -m)" >&2; exit 1 ;;
+        esac
+
+        TAG="$GQ_VERSION"
+        if [ "$TAG" = "latest" ]; then
+          TAG=$(curl -fsSL "https://api.github.com/repos/javirub/gq/releases/latest" \
+            | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+        fi
+
+        INSTALL_DIR="${RUNNER_TEMP}/gq-bin"
+        mkdir -p "$INSTALL_DIR"
+
+        BIN="gq"
+        [ "$OS" = "windows" ] && BIN="gq.exe"
+
+        installed=false
+        if [ -n "${TAG:-}" ]; then
+          EXT="tar.gz"
+          [ "$OS" = "windows" ] && EXT="zip"
+          ASSET="gq_${OS}_${ARCH}.${EXT}"
+          BASE="https://github.com/javirub/gq/releases/download/${TAG}"
+          if curl -fsSL "${BASE}/${ASSET}" -o "${INSTALL_DIR}/${ASSET}" \
+            && curl -fsSL "${BASE}/checksums.txt" -o "${INSTALL_DIR}/checksums.txt"; then
+            pushd "$INSTALL_DIR" >/dev/null
+            grep " ${ASSET}\$" checksums.txt | sha256sum -c -
+            if [ "$EXT" = "zip" ]; then
+              unzip -o "$ASSET" "$BIN"
+            else
+              tar -xzf "$ASSET" "$BIN"
+            fi
+            popd >/dev/null
+            installed=true
+          fi
+        fi
+
+        if [ "$installed" = "false" ]; then
+          echo "no release asset available, falling back to 'go install'"
+          GOBIN="$INSTALL_DIR" go install "github.com/javirub/gq/cmd/gq@${TAG:-latest}"
+        fi
+
+        echo "$INSTALL_DIR" >> "$GITHUB_PATH"
+
+    - name: Run gq
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        result=$(eval gq ${{ inputs.cmd }})
+        {
+          echo "result<<GQ_ACTION_EOF"
+          echo "$result"
+          echo "GQ_ACTION_EOF"
+        } >> "$GITHUB_OUTPUT"
+        echo "$result"

@@ -1,0 +1,50 @@
+version: "2"
+linters:
+  enable:
+    - asciicheck
+    - depguard
+    - errorlint
+    - gochecknoinits
+    - gosec
+    - misspell
+    - nakedret
+    - nolintlint
+    - predeclared
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    misspell:
+      locale: US
+    depguard:
+      rules:
+        prevent_unmaintained_packages:
+          list-mode: lax
+          files:
+            - $all
+            - '!$test'
+          deny:
+            - pkg: io/ioutil
+              desc: 'replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil'
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - revive
+        text: var-naming
+      # tests exec the compiled gq binary with table-driven args, which
+      # gosec's taint analysis flags (G204/G703); production code stays
+      # fully covered by gosec
+      - linters:
+          - gosec
+        path: _test\.go$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports

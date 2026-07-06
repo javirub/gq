@@ -1,0 +1,10 @@
+# top comment
+name: myapp
+replicas: 3
+image:
+  repo: nginx
+  tag: "1.25"
+ports:
+  - 80
+  - 443
+enabled: true

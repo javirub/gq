@@ -1,0 +1,7 @@
+top: 1
+{{ if .outer }}
+label: x
+{{ if .inner }}
+label: x
+{{ end }}
+{{ end }}

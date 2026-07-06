@@ -1,0 +1,8 @@
+replicas: 7
+{{ if .Values.enabled }}
+host: enabled.example.com
+mode: on
+{{ else }}
+host: disabled.example.com
+{{ end }}
+tail: end

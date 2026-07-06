@@ -1,0 +1,8 @@
+replicas: 3
+{{ if .Values.enabled }}
+host: everywhere
+mode: on
+{{ else }}
+host: everywhere
+{{ end }}
+tail: end

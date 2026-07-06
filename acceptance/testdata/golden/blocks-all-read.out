@@ -1,0 +1,4 @@
+# branch: {{ if .Values.enabled }} (values.yaml.gotmpl:2)
+enabled.example.com
+# branch: {{ else }} (values.yaml.gotmpl:5)
+disabled.example.com

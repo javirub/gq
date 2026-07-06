@@ -1,0 +1,47 @@
+version: 2
+project_name: gq
+
+builds:
+  - main: ./cmd/gq
+    binary: gq
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/javirub/gq/internal/cli.gqVersion=v{{ .Version }}
+
+archives:
+  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+signs:
+  - cmd: cosign
+    signature: '${artifact}.sig'
+    certificate: '${artifact}.pem'
+    args:
+      - sign-blob
+      - '--yes'
+      - '--output-signature=${signature}'
+      - '--output-certificate=${certificate}'
+      - '${artifact}'
+    artifacts: checksum
+    output: true
+
+release:
+  draft: true
+
+changelog:
+  use: github
+  sort: asc

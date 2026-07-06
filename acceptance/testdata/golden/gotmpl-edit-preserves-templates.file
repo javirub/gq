@@ -1,0 +1,4 @@
+# environment values
+name: {{ .Environment.Name }}
+image: "repo/{{ .Values.tag }}:stable"
+replicas: 5
