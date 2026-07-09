@@ -33,8 +33,10 @@ fuzz:
 bench:
 	go test -bench . -benchmem -run '^$$' ./internal/...
 
+# keep the version in sync with the govulncheck pin in .github/workflows/ci.yml
 vex:
-	govulncheck -format=openvex ./... > security/openvex.json
+	go run golang.org/x/vuln/cmd/govulncheck@v1.5.0 -format=openvex ./... > security/openvex.json.tmp
+	mv security/openvex.json.tmp security/openvex.json
 
 # signing and SBOMs need cosign/syft and only make sense in CI releases
 snapshot:
