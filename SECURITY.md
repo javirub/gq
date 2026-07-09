@@ -41,6 +41,11 @@ Dependency and static-analysis findings are handled as follows:
   **14 days**, medium/low within **90 days**. Findings in dependencies that do
   not affect gq (unreachable code paths per govulncheck) are documented in the
   suppressing PR.
+- **VEX**: dependency vulnerabilities that do not affect gq (because the
+  vulnerable code is not present in the build or not reachable per
+  govulncheck's call-graph analysis) are published as an OpenVEX document in
+  [`security/openvex.json`](security/openvex.json), regenerated with
+  `make vex` whenever new advisories appear and before each release.
 - **Licenses**: dependencies must be MIT, BSD, or Apache-2.0 licensed;
   violations block the dependency from being added.
 - **Static analysis (SAST)**: CodeQL and OpenSSF Scorecard run on every pull

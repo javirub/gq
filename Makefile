@@ -1,6 +1,6 @@
 GOPATH_BIN := $(shell go env GOPATH)/bin
 
-.PHONY: build test race lint acceptance update-golden coverage fuzz bench snapshot check
+.PHONY: build test race lint acceptance update-golden coverage fuzz bench vex snapshot check
 
 build:
 	go build -o gq$(shell go env GOEXE) ./cmd/gq
@@ -32,6 +32,11 @@ fuzz:
 
 bench:
 	go test -bench . -benchmem -run '^$$' ./internal/...
+
+# keep the version in sync with the govulncheck pin in .github/workflows/ci.yml
+vex:
+	go run golang.org/x/vuln/cmd/govulncheck@v1.5.0 -format=openvex ./... > security/openvex.json.tmp
+	mv security/openvex.json.tmp security/openvex.json
 
 # signing and SBOMs need cosign/syft and only make sense in CI releases
 snapshot:
