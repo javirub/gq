@@ -33,7 +33,8 @@ fuzz:
 bench:
 	go test -bench . -benchmem -run '^$$' ./internal/...
 
+# signing and SBOMs need cosign/syft and only make sense in CI releases
 snapshot:
-	goreleaser release --snapshot --clean
+	goreleaser release --snapshot --clean --skip=sign,sbom
 
 check: lint test race acceptance
