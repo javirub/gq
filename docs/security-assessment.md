@@ -8,10 +8,14 @@ problems that could occur in gq, and how the project mitigates them. See
 ## Attack Surface
 
 gq is a local command-line tool with no network access, no privileged
-operations, and no execution of user-provided code. Its entire attack
-surface is the parsing of untrusted text: input documents (YAML/JSON,
-possibly containing Go-template syntax), values files, and the expression
-string.
+operations, and no execution of arbitrary user-provided code: it never
+executes Go templates, spawns no subprocesses, and loads no plugins. It
+does evaluate user-supplied yq/jq-style expressions with the embedded yq
+engine, a sandboxed data-transformation language over the parsed documents
+rather than general-purpose code execution. Its attack surface is therefore
+the parsing of untrusted text — input documents (YAML/JSON, possibly
+containing Go-template syntax) and values files — plus the evaluation of
+the expression language over them.
 
 ## Threats and Mitigations
 
