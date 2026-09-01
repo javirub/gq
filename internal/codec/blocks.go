@@ -56,11 +56,15 @@ type File struct {
 	format Format
 	lines  []string
 	Blocks []*Block
+	// blockScalar[i] reports that line i is the body of a literal or
+	// folded block scalar, where a blank line is scalar content
+	blockScalar []bool
 }
 
 // Parse builds the block tree of a templated document.
 func Parse(src string, format Format) (*File, error) {
 	f := &File{format: format, lines: strings.Split(src, "\n")}
+	f.blockScalar = markBlockScalarLines(f.lines)
 	if !strings.Contains(src, "{{") {
 		return f, nil
 	}
@@ -327,6 +331,12 @@ func (f *File) project(out *[]string, doc *Doc, from, to int, blocks []*Block, s
 	cursor := from
 	emitPlain := func(upto int) error {
 		for ; cursor < upto; cursor++ {
+			if f.isDocBlank(cursor) {
+				// yqlib drops blank lines on re-emit; park them in a
+				// marker comment like any other verbatim region
+				*out = append(*out, doc.addMarker(f.lines[cursor:cursor+1], ""))
+				continue
+			}
 			encoded, err := f.encodeInlineLine(doc, cursor)
 			if err != nil {
 				return err
@@ -414,4 +424,126 @@ func (f *File) encodeInlineLine(doc *Doc, idx int) (string, error) {
 
 func markerIndent(line string) string {
 	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+}
+
+// isDocBlank reports whether line idx is document whitespace: an empty line
+// that is neither block-scalar content nor the empty tail that Split leaves
+// behind for the file's final newline.
+func (f *File) isDocBlank(idx int) bool {
+	if idx >= len(f.lines)-1 {
+		return false
+	}
+	if idx < len(f.blockScalar) && f.blockScalar[idx] {
+		return false
+	}
+	return strings.TrimSpace(f.lines[idx]) == ""
+}
+
+// markBlockScalarLines flags the lines making up the body of a literal (|)
+// or folded (>) block scalar. Blank lines inside one are part of the value
+// and must reach the parser untouched.
+func markBlockScalarLines(lines []string) []bool {
+	body := make([]bool, len(lines))
+	open, keep := false, false
+	openIndent, openLine := 0, 0
+
+	for i, line := range lines {
+		if open {
+			if strings.TrimSpace(line) == "" {
+				body[i] = true
+				continue
+			}
+			if lineIndent(line) > openIndent {
+				body[i] = true
+				continue
+			}
+			// The scalar ends here. Under clip/strip chomping its trailing
+			// blank lines are not part of the value, so hand them back to
+			// the document; "+" keeps them and they stay scalar content.
+			if !keep {
+				for j := i - 1; j > openLine && body[j] && strings.TrimSpace(lines[j]) == ""; j-- {
+					body[j] = false
+				}
+			}
+			open = false
+		}
+		if indent, chomp, ok := blockScalarOpen(line); ok {
+			open, keep, openIndent, openLine = true, chomp == '+', indent, i
+		}
+	}
+	return body
+}
+
+// blockScalarOpen reports whether the line opens a block scalar, returning
+// the indent of the opening line and its chomping indicator (0 if none).
+func blockScalarOpen(line string) (indent int, chomp byte, ok bool) {
+	rest := strings.TrimLeft(line, " \t")
+	indent = len(line) - len(rest)
+	if rest == "" || rest[0] == '#' {
+		return 0, 0, false
+	}
+	// unwrap sequence indicators: "- |", "- - |", "- key: |"
+	for strings.HasPrefix(rest, "- ") {
+		rest = strings.TrimLeft(rest[2:], " \t")
+	}
+	if chomp, ok = blockScalarIndicator(rest); ok {
+		return indent, chomp, true
+	}
+	// "key: |" -- find the colon closing the key, ignoring quoted text
+	inSingle, inDouble := false, false
+	for j := 0; j < len(rest); j++ {
+		c := rest[j]
+		switch {
+		case inSingle:
+			if c == '\'' {
+				inSingle = false
+			}
+		case inDouble:
+			if c == '\\' {
+				j++
+			} else if c == '"' {
+				inDouble = false
+			}
+		case c == '\'':
+			inSingle = true
+		case c == '"':
+			inDouble = true
+		case c == '#':
+			return 0, 0, false
+		case c == ':':
+			if j+1 == len(rest) || rest[j+1] == ' ' || rest[j+1] == '\t' {
+				chomp, ok = blockScalarIndicator(rest[j+1:])
+				return indent, chomp, ok
+			}
+		}
+	}
+	return 0, 0, false
+}
+
+// blockScalarIndicator reports whether v is a block scalar header such as
+// "|", ">-", "|2+", optionally trailed by a comment.
+func blockScalarIndicator(v string) (chomp byte, ok bool) {
+	v = strings.TrimSpace(v)
+	if v == "" || (v[0] != '|' && v[0] != '>') {
+		return 0, false
+	}
+	i := 1
+	for i < len(v) && v[i] >= '0' && v[i] <= '9' {
+		i++
+	}
+	if i < len(v) && (v[i] == '+' || v[i] == '-') {
+		chomp = v[i]
+		i++
+	}
+	for i < len(v) && v[i] >= '0' && v[i] <= '9' {
+		i++
+	}
+	if tail := strings.TrimSpace(v[i:]); tail != "" && !strings.HasPrefix(tail, "#") {
+		return 0, false
+	}
+	return chomp, true
+}
+
+func lineIndent(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
