@@ -499,9 +499,10 @@ func blockScalarOpen(line string) (indent int, chomp byte, ok bool) {
 				inSingle = false
 			}
 		case inDouble:
-			if c == '\\' {
+			switch c {
+			case '\\':
 				j++
-			} else if c == '"' {
+			case '"':
 				inDouble = false
 			}
 		case c == '\'':
