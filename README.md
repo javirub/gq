@@ -85,7 +85,7 @@ Keys missing from the data context are an error (exit code 2), not a silent
 ## yq compatibility
 
 For plain `.yaml`/`.json` files gq behaves like yq (same expression language,
-same output, comments preserved). Flags mirrored 1:1 from yq v4.53.3:
+same output, comments preserved). Flags mirrored 1:1 from yq v4.53.6:
 
 | Flag | Behaviour |
 |---|---|
@@ -123,6 +123,10 @@ conditional / missing values (gq-specific, CI-friendly).
   `{{ end }}`) is excised into standalone marker comments; only the *active*
   branch is ever parsed, so duplicate keys across branches never collide and
   inactive branches are byte-identical by construction.
+- Blank lines between entries ride along in the same marker comments, so an
+  edit no longer collapses the spacing of the file around it. Blank lines
+  inside a literal (`|`) or folded (`>`) block scalar are left alone: there
+  they are part of the value, not layout.
 - `{{ if }}` conditions are evaluated with Go text/template (+ sprig) against
   the `--values`/`-f` data, with exact template truthiness.
 - A safety valve verifies every marker survives evaluation: an expression
@@ -144,8 +148,10 @@ conditional / missing values (gq-specific, CI-friendly).
   comments to anchor the markers); inline templates in JSON work.
 - Only one file with control-flow blocks per invocation; `eval-all` does not
   support block files.
-- Parsed (active) regions get yq-style normalization on write, exactly like
-  `yq -i`; only inactive branches are guaranteed byte-identical.
+- Parsed (active) regions get yq-style normalization on write, much like
+  `yq -i` (blank lines excepted, see above); only inactive branches are
+  guaranteed byte-identical. Block scalars in particular are re-emitted by
+  the YAML encoder, which can shift their trailing blank line.
 - Template functions are text/template + sprig; helmfile's `readFile`/`exec`/
   state values are not available.
 - yq formats other than YAML/JSON (xml, csv, toml, props, lua, ini, hcl...)

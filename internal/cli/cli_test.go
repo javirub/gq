@@ -762,3 +762,54 @@ func TestYqParity(t *testing.T) {
 		})
 	}
 }
+
+const gotmplBlankLines = `# environment values
+name: {{ .Values.name }}
+
+replicas: 3
+
+script: |
+  first
+
+  third
+tail: {{ .Values.tail }}
+`
+
+func TestGotmplBlankLinesRoundTrip(t *testing.T) {
+	path := writeFile(t, "values.yaml.gotmpl", gotmplBlankLines)
+	got, err := runGq(t, ".", path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != gotmplBlankLines {
+		t.Errorf("round trip mismatch:\n got:  %q\n want: %q", got, gotmplBlankLines)
+	}
+}
+
+func TestGotmplEditKeepsBlankLines(t *testing.T) {
+	path := writeFile(t, "values.yaml.gotmpl", gotmplBlankLines)
+	if _, err := runGq(t, "-i", ".replicas = 5", path); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Replace(gotmplBlankLines, "replicas: 3", "replicas: 5", 1)
+	if string(content) != want {
+		t.Errorf("edit must touch only the requested line:\n got:  %q\n want: %q", content, want)
+	}
+}
+
+// A blank line inside a literal block scalar is part of the value: it must
+// stay where it is and never be mistaken for document whitespace.
+func TestGotmplBlockScalarBlankIsContent(t *testing.T) {
+	path := writeFile(t, "values.yaml.gotmpl", gotmplBlankLines)
+	got, err := runGq(t, ".script", path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "first\n\nthird\n\n" {
+		t.Errorf("block scalar value altered: %q", got)
+	}
+}

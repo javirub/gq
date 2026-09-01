@@ -327,3 +327,91 @@ func TestQuotedTemplateKeepsQuotes(t *testing.T) {
 		t.Errorf("quotes must be preserved, got %q", restored)
 	}
 }
+
+func TestMarkBlockScalarLines(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want []bool // one per line, true = block scalar body
+	}{
+		{
+			"literal body", "script: |\n  a\n\n  b\nnext: 1\n",
+			[]bool{false, true, true, true, false, false},
+		},
+		{
+			"folded body", "notes: >\n  a\n\n  b\nnext: 1\n",
+			[]bool{false, true, true, true, false, false},
+		},
+		{
+			"trailing blank returns to the document under clip chomping",
+			"script: |\n  a\n\nnext: 1\n",
+			[]bool{false, true, false, false, false},
+		},
+		{
+			"keep chomping owns its trailing blank",
+			"script: |+\n  a\n\nnext: 1\n",
+			[]bool{false, true, true, false, false},
+		},
+		{
+			"strip indicator with explicit indent", "script: |2-\n   a\n\n   b\nnext: 1\n",
+			[]bool{false, true, true, true, false, false},
+		},
+		{
+			"sequence item scalar", "items:\n  - |\n    a\n\n    b\n  - plain\n",
+			[]bool{false, false, true, true, true, false, false},
+		},
+		{
+			"header with trailing comment", "script: | # why\n  a\n\n  b\nnext: 1\n",
+			[]bool{false, true, true, true, false, false},
+		},
+		{
+			"colon in quoted key is not a scalar header", "\"a: |\": v\n\nnext: 1\n",
+			[]bool{false, false, false, false},
+		},
+		{
+			"plain mapping has no scalar body", "a: 1\n\nb: 2\n",
+			[]bool{false, false, false, false},
+		},
+		{
+			"greater-than in a plain value is not a header", "cmd: a > b\n\nnext: 1\n",
+			[]bool{false, false, false, false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := markBlockScalarLines(strings.Split(tt.src, "\n"))
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d flags, want %d: %v", len(got), len(tt.want), got)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Errorf("line %d (%q): got %v, want %v", i, strings.Split(tt.src, "\n")[i], got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestBlankLinesSurviveProjection(t *testing.T) {
+	src := "name: {{ .x }}\n\n# comment\nreplicas: 3\n\ntail: 1\n"
+	doc, err := Encode(src, Yaml)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	// every document blank line must be parked in a marker, so the text
+	// handed to the YAML parser carries none of them
+	proj := strings.Split(doc.Projection(), "\n")
+	for i, line := range proj[:len(proj)-1] {
+		if strings.TrimSpace(line) == "" {
+			t.Errorf("projection line %d is still blank:\n%s", i, doc.Projection())
+		}
+	}
+	restored, err := doc.Restore(doc.Projection())
+	if err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if restored != src {
+		t.Errorf("round trip mismatch:\n got:  %q\n want: %q", restored, src)
+	}
+}
