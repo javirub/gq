@@ -24,6 +24,6 @@ jobs:
         with:
           languages: go
           build-mode: autobuild
-      - uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
+      - uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           category: '/language:go'
